@@ -30,6 +30,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <regex>
 #include <stdexcept>
 #include <utility>
 
@@ -162,6 +163,36 @@ map<string, Builtin> SemanticTest::makeBuiltins()
 				size_t accountNumber = static_cast<size_t>(stoi(_call.arguments.parameters.at(0).rawString));
 				// Need to pad it to 32-bytes to workaround limitations in BytesUtils::formatHex.
 				return toBigEndian(h256(ExecutionFramework::setAccount(accountNumber).asBytes(), h256::AlignRight));
+			}
+		},
+		{
+			"bytecode",
+			[this](FunctionCall const& _call) -> optional<bytes>
+			{
+				bool result{false};
+				optional<regex> regexPattern;
+				soltestAssert(_call.arguments.parameters.size() == 1, "Bytecode pattern string expected.");
+				string pattern{_call.arguments.parameters.at(0).rawString};
+				bytes bytecode = ExecutionFramework::bytecode();
+				if (pattern.length() >= 2 && boost::starts_with(pattern, "\"") && boost::ends_with(pattern, "\""))
+				{
+					pattern = pattern.substr(1, pattern.length() - 2);
+					try
+					{
+						regex expr(pattern);
+						regexPattern = expr;
+					}
+					catch(...)
+					{
+						regexPattern.reset();
+					}
+				}
+				if (regexPattern != nullopt)
+					result = regex_match(toHex(bytecode), regexPattern.value());
+				else if (isValidHex(pattern))
+					result = toHex(bytecode).find(pattern.substr(2)) != std::string::npos;
+
+				return toBigEndian(u256(result ? 1 : 0));
 			}
 		},
 	};

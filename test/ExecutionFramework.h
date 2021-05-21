@@ -247,6 +247,11 @@ public:
 		return m_sender;
 	}
 
+	bytes const& bytecode() const
+	{
+		return m_output;
+	}
+
 private:
 	template <class CppFunction, class... Args>
 	auto callCppAndEncodeResult(CppFunction const& _cppFunction, Args const&... _arguments)
